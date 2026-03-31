@@ -9,13 +9,11 @@
 2. **Task Management** — Create, edit, and assign care tasks to pets (with duration, priority, and type)
 3. **Schedule Viewing** — View the generated daily care plan on a calendar or timeline display
 
-- Briefly describe your initial UML design.
-- What classes did you include, and what responsibilities did you assign to each?
+We chose four classes: **Task** (a dataclass representing a single care activity with title, type, duration, priority, and recurrence info), **Pet** (a dataclass holding pet details and a list of its tasks, with methods to add/remove/filter tasks), **Owner** (a dataclass representing the user with their available hours and a list of pets), and **Scheduler** (a regular class that takes an Owner, collects all tasks across their pets, and generates a prioritized daily schedule with conflict detection).
 
 **b. Design changes**
 
-- Did your design change during implementation?
-- If yes, describe at least one change and why you made it.
+Changed `available_hours` on Owner from `List[int]` to `List[List[int]]` (a list of start/end pairs). This allows an owner to have multiple availability windows with gaps in between (e.g., free 7-9am and 5-8pm), which is more realistic than assuming one continuous block of time.
 
 ---
 
@@ -23,13 +21,11 @@
 
 **a. Constraints and priorities**
 
-- What constraints does your scheduler consider (for example: time, priority, preferences)?
-- How did you decide which constraints mattered most?
+The scheduler considers three constraints: **priority** (high tasks are scheduled first), **available time windows** (tasks are only placed within the owner's free hours), and **task duration** (a task is skipped if it doesn't fit in the remaining window). Priority was chosen as the primary sort key because a pet owner would always want critical tasks like medication handled before optional ones like grooming.
 
 **b. Tradeoffs**
 
-- Describe one tradeoff your scheduler makes.
-- Why is that tradeoff reasonable for this scenario?
+The scheduler uses a greedy algorithm — it places the highest-priority task first and moves on, never reconsidering. This means it might skip a short low-priority task that could have fit in a gap, in favor of a longer high-priority task that doesn't fit. This tradeoff is reasonable because for pet care, getting the important things done first matters more than maximizing the total number of tasks scheduled.
 
 ---
 

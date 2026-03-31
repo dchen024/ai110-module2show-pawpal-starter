@@ -32,6 +32,17 @@ source .venv/bin/activate  # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
+## Smarter Scheduling
+
+PawPal+ includes several algorithmic features to manage pet care intelligently:
+
+- **Priority-based scheduling** — High-priority tasks (e.g., medication) are always scheduled before lower-priority ones
+- **Time window fitting** — Tasks are placed into the owner's available hours, skipping tasks that don't fit
+- **Recurring tasks** — Daily or weekly tasks automatically generate their next occurrence when completed
+- **Conflict detection** — The scheduler checks for overlapping tasks and warns the user
+- **Filtering** — View tasks by pet name, type, or completion status
+- **Sorting** — Sort tasks by time or priority
+
 ### Suggested workflow
 
 1. Read the scenario carefully and identify requirements and edge cases.

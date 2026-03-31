@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from typing import List, Optional
 
 
@@ -51,6 +51,31 @@ class Pet:
         """Return all tasks that have not been completed."""
         return [task for task in self.tasks if not task.completed]
 
+    def complete_task(self, task: Task):
+        """Mark a task as completed and auto-create the next occurrence if recurring."""
+        task.mark_completed()
+        if task.is_recurring and task.recurrence_interval:
+            # Calculate next scheduled time
+            days = {"daily": 1, "weekly": 7}
+            delta = timedelta(days=days.get(task.recurrence_interval, 1))
+            next_time = None
+            if task.scheduled_time:
+                next_time = task.scheduled_time + delta
+
+            next_task = Task(
+                title=task.title,
+                pet_name=task.pet_name,
+                task_type=task.task_type,
+                duration_minutes=task.duration_minutes,
+                priority=task.priority,
+                is_recurring=True,
+                recurrence_interval=task.recurrence_interval,
+                scheduled_time=next_time,
+            )
+            self.add_task(next_task)
+            return next_task
+        return None
+
 
 @dataclass
 class Owner:
@@ -80,6 +105,14 @@ class Scheduler:
         self.owner = owner
         self.daily_schedule: List[Task] = []
         self.date = schedule_date or date.today()
+
+    def sort_by_time(self, tasks: List[Task]) -> List[Task]:
+        """Return tasks sorted by scheduled time, with unscheduled tasks at the end."""
+        return sorted(tasks, key=lambda t: t.scheduled_time or datetime.max)
+
+    def filter_by_pet(self, pet_name: str) -> List[Task]:
+        """Return only scheduled tasks belonging to the given pet."""
+        return [t for t in self.daily_schedule if t.pet_name == pet_name]
 
     def sort_by_priority(self, tasks: List[Task]) -> List[Task]:
         """Return tasks sorted by priority: high first, then medium, then low."""
