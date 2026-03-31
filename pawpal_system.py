@@ -132,35 +132,73 @@ class Scheduler:
                 conflicts.append((current, next_task))
         return conflicts
 
+    def _time_to_hours(self, dt: datetime) -> float:
+        """Convert a datetime to a fractional hour (e.g. 7:30 -> 7.5)."""
+        return dt.hour + dt.minute / 60
+
+    def _hours_to_datetime(self, hours: float) -> datetime:
+        """Convert fractional hours to a datetime on the schedule date."""
+        hour = int(hours)
+        minute = int((hours - hour) * 60)
+        return datetime(self.date.year, self.date.month, self.date.day, hour, minute)
+
+    def _find_gaps(self, window_start: float, window_end: float,
+                   fixed_tasks: List[Task]) -> List[List[float]]:
+        """Find free gaps in a time window around fixed tasks."""
+        # Get fixed tasks that fall in this window
+        tasks_in_window = []
+        for t in fixed_tasks:
+            t_start = self._time_to_hours(t.scheduled_time)
+            t_end = t_start + t.duration_minutes / 60
+            if t_start < window_end and t_end > window_start:
+                tasks_in_window.append((t_start, t_end))
+        tasks_in_window.sort()
+
+        # Build list of gaps
+        gaps = []
+        cursor = window_start
+        for t_start, t_end in tasks_in_window:
+            if cursor < t_start:
+                gaps.append([cursor, t_start])
+            cursor = max(cursor, t_end)
+        if cursor < window_end:
+            gaps.append([cursor, window_end])
+        return gaps
+
     def generate_schedule(self) -> List[Task]:
-        """Build a daily schedule by fitting pending tasks into available time windows by priority."""
+        """Build a daily schedule, respecting fixed task times and filling flexible tasks into gaps."""
         # 1. Get all pending tasks
         all_tasks = []
         for pet in self.owner.pets:
             all_tasks.extend(pet.get_pending_tasks())
 
-        # 2. Sort by priority (high first)
-        sorted_tasks = self.sort_by_priority(all_tasks)
+        # 2. Separate fixed (user-set time) from flexible (no time set)
+        fixed = [t for t in all_tasks if t.scheduled_time is not None]
+        flexible = [t for t in all_tasks if t.scheduled_time is None]
 
-        # 3. Fill tasks into available time windows
-        self.daily_schedule = []
+        # 3. Start schedule with fixed tasks
+        self.daily_schedule = list(fixed)
+
+        # 4. Sort flexible tasks by priority
+        sorted_flexible = self.sort_by_priority(flexible)
+
+        # 5. Fill flexible tasks into gaps around fixed tasks
         for window in self.owner.available_hours:
             window_start = window[0]
             window_end = window[1]
-            current_hour = window_start
+            gaps = self._find_gaps(window_start, window_end, fixed)
 
-            for task in sorted_tasks:
-                if task in self.daily_schedule:
-                    continue  # already scheduled
-                task_hours = task.duration_minutes / 60
-                if current_hour + task_hours <= window_end:
-                    hour = int(current_hour)
-                    minute = int((current_hour - hour) * 60)
-                    task.scheduled_time = datetime(
-                        self.date.year, self.date.month, self.date.day,
-                        hour, minute
-                    )
-                    self.daily_schedule.append(task)
-                    current_hour += task_hours
+            for gap_start, gap_end in gaps:
+                current_hour = gap_start
+                for task in sorted_flexible:
+                    if task in self.daily_schedule:
+                        continue
+                    task_hours = task.duration_minutes / 60
+                    if current_hour + task_hours <= gap_end:
+                        task.scheduled_time = self._hours_to_datetime(current_hour)
+                        self.daily_schedule.append(task)
+                        current_hour += task_hours
 
+        # 6. Sort final schedule by time
+        self.daily_schedule = self.sort_by_time(self.daily_schedule)
         return self.daily_schedule

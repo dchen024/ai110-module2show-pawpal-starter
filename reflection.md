@@ -47,13 +47,11 @@ The scheduler uses a greedy algorithm — it places the highest-priority task fi
 
 **a. What you tested**
 
-- What behaviors did you test?
-- Why were these tests important?
+We tested 14 behaviors across the system: task completion, task addition, pending task filtering, priority-based scheduling, time window constraints, recurring task generation (both daily and verifying non-recurring tasks don't create new ones), pet filtering, fixed-time task preservation, flexible tasks filling gaps around fixed tasks, conflict detection for overlapping tasks, and three edge cases (no pets, no tasks, no available hours). These tests are important because they verify both the "happy path" and the boundary conditions that could silently produce incorrect schedules.
 
 **b. Confidence**
 
-- How confident are you that your scheduler works correctly?
-- What edge cases would you test next if you had more time?
+4/5 stars. The core scheduling logic, sorting, filtering, recurrence, and conflict detection are all covered by automated tests. Edge cases we would test next: tasks whose duration spans multiple time windows, weekly recurring tasks, and removing a pet that has scheduled tasks.
 
 ---
 

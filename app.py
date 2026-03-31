@@ -1,5 +1,5 @@
 import streamlit as st
-from datetime import date
+from datetime import date, datetime, time
 from pawpal_system import Owner, Pet, Task, Scheduler
 
 st.set_page_config(page_title="PawPal+", page_icon="🐾", layout="centered")
@@ -63,8 +63,17 @@ else:
         priority = st.selectbox("Priority", ["high", "medium", "low"])
         is_recurring = st.checkbox("Recurring?")
 
+    has_fixed_time = st.checkbox("Set a specific time?")
+    fixed_time = None
+    if has_fixed_time:
+        fixed_time = st.time_input("Task time", value=time(8, 0))
+
     if st.button("Add Task"):
         pet = next(p for p in owner.pets if p.name == selected_pet)
+        scheduled_time = None
+        if fixed_time:
+            today = date.today()
+            scheduled_time = datetime.combine(today, fixed_time)
         new_task = Task(
             title=task_title,
             pet_name=selected_pet,
@@ -72,6 +81,7 @@ else:
             duration_minutes=int(duration),
             priority=priority,
             is_recurring=is_recurring,
+            scheduled_time=scheduled_time,
         )
         pet.add_task(new_task)
         st.success(f"Added '{task_title}' for {selected_pet}!")

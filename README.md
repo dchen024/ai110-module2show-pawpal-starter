@@ -42,6 +42,26 @@ PawPal+ includes several algorithmic features to manage pet care intelligently:
 - **Conflict detection** — The scheduler checks for overlapping tasks and warns the user
 - **Filtering** — View tasks by pet name, type, or completion status
 - **Sorting** — Sort tasks by time or priority
+- **Fixed-time support** — Tasks can have a user-set time; the scheduler fills flexible tasks around them
+
+## Testing PawPal+
+
+Run the test suite with:
+
+```bash
+python -m pytest tests/test_pawpal.py -v
+```
+
+The tests cover:
+- Task completion and recurring task generation
+- Adding/removing tasks from pets
+- Priority-based scheduling order
+- Time window constraints (tasks that don't fit are excluded)
+- Fixed-time tasks retain their set time while flexible tasks fill gaps
+- Conflict detection for overlapping fixed-time tasks
+- Edge cases: no pets, no tasks, no available hours
+
+**Confidence Level:** ⭐⭐⭐⭐ (4/5) — Core scheduling, sorting, filtering, recurrence, and conflict detection are well-tested. Additional edge cases like very long tasks spanning multiple windows could be explored with more time.
 
 ### Suggested workflow
 
