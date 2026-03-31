@@ -7,8 +7,14 @@ st.set_page_config(page_title="PawPal+", page_icon="🐾", layout="centered")
 # --- Session State: keep data alive across re-runs ---
 if "owner" not in st.session_state:
     st.session_state.owner = Owner(name="", email="")
+if "schedule" not in st.session_state:
+    st.session_state.schedule = []
+if "conflicts" not in st.session_state:
+    st.session_state.conflicts = []
 
 owner = st.session_state.owner
+
+PRIORITY_COLORS = {"high": "🔴", "medium": "🟡", "low": "🟢"}
 
 # ====== SIDEBAR ======
 with st.sidebar:
@@ -25,9 +31,16 @@ with st.sidebar:
         window_end = st.number_input("End hour", min_value=1, max_value=24, value=9)
     if st.button("Add time window"):
         owner.available_hours.append([window_start, window_end])
+
     if owner.available_hours:
         for i, w in enumerate(owner.available_hours):
-            st.write(f"Window {i+1}: {w[0]}:00 - {w[1]}:00")
+            col_a, col_b = st.columns([3, 1])
+            with col_a:
+                st.write(f"Window {i+1}: {w[0]}:00 - {w[1]}:00")
+            with col_b:
+                if st.button("X", key=f"rm_window_{i}"):
+                    owner.available_hours.pop(i)
+                    st.rerun()
 
     st.divider()
 
@@ -50,7 +63,7 @@ st.title("🐾 PawPal+")
 if not owner.pets:
     st.info("No pets yet — add one in the sidebar!")
 else:
-    # --- Add Task (only shows when pets exist) ---
+    # --- Add Task ---
     st.subheader("Add a Task")
     pet_names = [p.name for p in owner.pets]
     col1, col2 = st.columns(2)
@@ -62,6 +75,9 @@ else:
         duration = st.number_input("Duration (minutes)", min_value=1, max_value=240, value=30)
         priority = st.selectbox("Priority", ["high", "medium", "low"])
         is_recurring = st.checkbox("Recurring?")
+        recurrence_interval = None
+        if is_recurring:
+            recurrence_interval = st.selectbox("How often?", ["daily", "weekly"])
 
     has_fixed_time = st.checkbox("Set a specific time?")
     fixed_time = None
@@ -72,8 +88,7 @@ else:
         pet = next(p for p in owner.pets if p.name == selected_pet)
         scheduled_time = None
         if fixed_time:
-            today = date.today()
-            scheduled_time = datetime.combine(today, fixed_time)
+            scheduled_time = datetime.combine(date.today(), fixed_time)
         new_task = Task(
             title=task_title,
             pet_name=selected_pet,
@@ -81,6 +96,7 @@ else:
             duration_minutes=int(duration),
             priority=priority,
             is_recurring=is_recurring,
+            recurrence_interval=recurrence_interval,
             scheduled_time=scheduled_time,
         )
         pet.add_task(new_task)
@@ -88,14 +104,35 @@ else:
 
     st.divider()
 
-    # --- Show Current Pets & Tasks ---
+    # --- Pets & Tasks ---
     st.subheader("Your Pets & Tasks")
     for pet in owner.pets:
         with st.expander(f"{pet.name} ({pet.species} - {pet.breed})", expanded=True):
             if pet.tasks:
-                for task in pet.tasks:
-                    status = "✅" if task.completed else "⏳"
-                    st.write(f"{status} **{task.title}** — {task.task_type} | {task.duration_minutes} min | {task.priority} priority")
+                for i, task in enumerate(pet.tasks):
+                    col_a, col_b = st.columns([4, 1])
+                    with col_a:
+                        icon = PRIORITY_COLORS.get(task.priority, "⚪")
+                        status = "~~" if task.completed else ""
+                        check = "✅" if task.completed else icon
+                        time_str = ""
+                        if task.scheduled_time:
+                            time_str = f" @ {task.scheduled_time.strftime('%I:%M %p')}"
+                        recurring_str = f" (repeats {task.recurrence_interval})" if task.is_recurring else ""
+                        st.markdown(
+                            f"{check} {status}**{task.title}**{status} — "
+                            f"{task.task_type} | {task.duration_minutes} min | "
+                            f"{task.priority}{time_str}{recurring_str}"
+                        )
+                    with col_b:
+                        if not task.completed:
+                            if st.button("Done", key=f"complete_{pet.name}_{i}"):
+                                next_task = pet.complete_task(task)
+                                if next_task:
+                                    st.toast(f"'{task.title}' completed! Next one created for {next_task.recurrence_interval}.")
+                                else:
+                                    st.toast(f"'{task.title}' completed!")
+                                st.rerun()
             else:
                 st.write("No tasks yet.")
 
@@ -115,32 +152,52 @@ else:
             st.session_state.conflicts = scheduler.detect_conflicts()
         else:
             st.warning("No pending tasks to schedule!")
+            st.session_state.schedule = []
+            st.session_state.conflicts = []
 
     # --- Display Schedule ---
-    if "schedule" in st.session_state and st.session_state.schedule:
-        schedule_data = []
-        for task in st.session_state.schedule:
-            schedule_data.append({
-                "Time": task.scheduled_time.strftime("%I:%M %p"),
-                "Task": task.title,
-                "Pet": task.pet_name,
-                "Type": task.task_type,
-                "Duration": f"{task.duration_minutes} min",
-                "Priority": task.priority,
-            })
-        st.table(schedule_data)
+    if st.session_state.schedule:
+        # Filter by pet
+        filter_options = ["All Pets"] + [p.name for p in owner.pets]
+        pet_filter = st.selectbox("Filter by pet", filter_options, key="pet_filter")
 
-        if st.session_state.conflicts:
-            st.error("⚠️ Scheduling conflicts detected!")
-            for a, b in st.session_state.conflicts:
-                st.write(f"- {a.title} overlaps with {b.title}")
+        display_tasks = st.session_state.schedule
+        if pet_filter != "All Pets":
+            scheduler = Scheduler(owner=owner, schedule_date=date.today())
+            scheduler.daily_schedule = st.session_state.schedule
+            display_tasks = scheduler.filter_by_pet(pet_filter)
+
+        if display_tasks:
+            schedule_data = []
+            for task in display_tasks:
+                schedule_data.append({
+                    "Time": task.scheduled_time.strftime("%I:%M %p"),
+                    "Task": task.title,
+                    "Pet": task.pet_name,
+                    "Type": task.task_type,
+                    "Duration": f"{task.duration_minutes} min",
+                    "Priority": f"{PRIORITY_COLORS.get(task.priority, '')} {task.priority}",
+                })
+            st.table(schedule_data)
         else:
-            st.success("No conflicts!")
+            st.info(f"No scheduled tasks for {pet_filter}.")
 
-        # Show unscheduled tasks
+        # Conflicts
+        if st.session_state.conflicts:
+            st.error("Scheduling conflicts detected!")
+            for a, b in st.session_state.conflicts:
+                st.warning(
+                    f"**{a.title}** ({a.scheduled_time.strftime('%I:%M %p')} - "
+                    f"{(a.scheduled_time.replace(minute=a.scheduled_time.minute + a.duration_minutes) if a.scheduled_time.minute + a.duration_minutes < 60 else a.scheduled_time).strftime('%I:%M %p')}) "
+                    f"overlaps with **{b.title}** ({b.scheduled_time.strftime('%I:%M %p')})"
+                )
+        else:
+            st.success("No scheduling conflicts!")
+
+        # Unscheduled tasks
         all_tasks = owner.get_all_tasks()
         unscheduled = [t for t in all_tasks if t not in st.session_state.schedule and not t.completed]
         if unscheduled:
-            st.warning("Some tasks didn't fit in your available hours:")
-            for t in unscheduled:
-                st.write(f"- {t.title} ({t.pet_name}) — {t.duration_minutes} min, {t.priority}")
+            with st.expander("Tasks that didn't fit", expanded=False):
+                for t in unscheduled:
+                    st.write(f"- {PRIORITY_COLORS.get(t.priority, '')} {t.title} ({t.pet_name}) — {t.duration_minutes} min, {t.priority}")

@@ -33,13 +33,11 @@ The scheduler uses a greedy algorithm — it places the highest-priority task fi
 
 **a. How you used AI**
 
-- How did you use AI tools during this project (for example: design brainstorming, debugging, refactoring)?
-- What kinds of prompts or questions were most helpful?
+AI was used throughout every phase: brainstorming class design and attributes, generating UML diagrams in Mermaid.js, scaffolding skeleton code, implementing scheduling algorithms, writing and debugging tests, and polishing the UI. The most helpful prompts were specific ones like "give me 20 core actions to pick from" (to have options rather than being handed a single answer) and asking for explanations of concepts like `field(default_factory=list)` to understand *why* the code works, not just *that* it works.
 
 **b. Judgment and verification**
 
-- Describe one moment where you did not accept an AI suggestion as-is.
-- How did you evaluate or verify what the AI suggested?
+Several times I did not accept AI suggestions as-is. I removed `get_schedule_explanation()` because it added complexity without real value — the schedule display already shows priorities and times clearly. I also pushed back on `available_hours` being a single start/end pair, insisting it should be a list of ranges to support gaps in the owner's day. Most significantly, I identified that tasks should support user-set fixed times rather than only auto-assigned times, which led to a major rewrite of the scheduling algorithm to find gaps around fixed tasks. In each case, I evaluated the suggestion by thinking about what a real pet owner would actually need.
 
 ---
 
@@ -59,12 +57,12 @@ We tested 14 behaviors across the system: task completion, task addition, pendin
 
 **a. What went well**
 
-- What part of this project are you most satisfied with?
+The scheduling algorithm — specifically how it handles fixed-time and flexible tasks together. The gap-finding logic that places fixed tasks first and then fills flexible tasks into remaining space by priority feels like a real-world solution, not just a classroom exercise.
 
 **b. What you would improve**
 
-- If you had another iteration, what would you improve or redesign?
+If I had another iteration, I would add drag-and-drop reordering in the UI so users can manually adjust the schedule after it's generated. I would also handle edge cases like tasks whose duration spans multiple time windows, and add a calendar view instead of just a table.
 
 **c. Key takeaway**
 
-- What is one important thing you learned about designing systems or working with AI on this project?
+Designing before coding (UML first, then skeletons, then implementation) prevented major rework. Working with AI is most effective when you act as the "lead architect" — letting AI generate options and handle boilerplate, but making the design decisions yourself. The moments where I pushed back on AI suggestions (removing unnecessary methods, requiring fixed-time support) led to the best improvements in the final product.
