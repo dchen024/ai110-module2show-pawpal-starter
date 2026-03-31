@@ -4,6 +4,11 @@
 
 **a. Initial design**
 
+**Core actions a user should be able to perform:**
+1. **Pet Management** — Add and manage pets with their details (name, species, age, breed)
+2. **Task Management** — Create, edit, and assign care tasks to pets (with duration, priority, and type)
+3. **Schedule Viewing** — View the generated daily care plan on a calendar or timeline display
+
 - Briefly describe your initial UML design.
 - What classes did you include, and what responsibilities did you assign to each?
 
